@@ -10,11 +10,10 @@ import { useNavigate } from "react-router-dom";
 import { Mail, User, Shield, Crown, CreditCard } from "lucide-react";
 
 /**
- * Premium Profile page: Option A (Neon) + Option C (Aurora) mix
- * - Copy this file over your existing Profile.jsx
- * - All animations and styles are injected via a <style> tag inside the component
- * - No external libs required
+ * Profile.jsx — updated to call deployed backend + improved error handling
  */
+
+const API_BASE = "https://guardianbox-backend-production-0605.up.railway.app";
 
 export default function Profile() {
   const [user, setUser] = useState(null);
@@ -33,20 +32,28 @@ export default function Profile() {
     }
 
     try {
-      const res = await fetch("http://localhost:4000/api/auth/me", {
+      const res = await fetch(`${API_BASE}/api/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      const data = await res.json();
-
+      // If not OK, attempt to read backend message, then navigate to login
       if (!res.ok) {
+        let errMsg = res.statusText;
+        try {
+          const errJson = await res.json();
+          errMsg = errJson?.message || errMsg;
+        } catch (e) {
+          // ignore JSON parse errors
+        }
+        console.warn("Failed fetching profile:", errMsg);
         navigate("/login");
         return;
       }
 
+      const data = await res.json();
       setUser(data);
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching profile:", err);
       navigate("/login");
     }
   };
@@ -75,21 +82,41 @@ export default function Profile() {
   const handleUpgrade = async () => {
     const token = localStorage.getItem("token");
 
+    if (!token) {
+      alert("Please login first.");
+      navigate("/login");
+      return;
+    }
+
     try {
-      const res = await fetch("http://localhost:4000/api/auth/upgrade", {
+      const res = await fetch(`${API_BASE}/api/auth/upgrade`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
 
-      const data = await res.json();
+      // if error, try to parse message and show it
+      if (!res.ok) {
+        let errMsg = res.statusText;
+        try {
+          const errJson = await res.json();
+          errMsg = errJson?.message || errMsg;
+        } catch (e) {}
+        alert(errMsg || "Upgrade failed");
+        return;
+      }
 
-      if (res.ok) {
-        fetchProfile();
-      } else {
-        alert(data.message || "Upgrade failed");
+      const data = await res.json();
+      // successful; refresh profile
+      fetchProfile();
+      // you can show success message if desired
+      if (data?.message) {
+        alert(data.message);
       }
     } catch (err) {
-      console.error(err);
+      console.error("Upgrade error:", err);
       alert("Something went wrong");
     }
   };
@@ -103,6 +130,11 @@ export default function Profile() {
 
   // ---------- Helper: masked card number (demo) ----------
   const maskedCard = "•••• •••• •••• 4242";
+
+  // safe createdAt display
+  const memberSince = user?.createdAt
+    ? new Date(user.createdAt).toLocaleDateString()
+    : "—";
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-[#030612]">
@@ -139,7 +171,6 @@ export default function Profile() {
       <div className="min-h-screen flex items-center justify-center p-6">
         {/* GLASS CARD */}
         <Card className="relative w-full max-w-xl bg-white/6 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-3xl p-6 overflow-visible transform transition-all duration-450 hover:scale-[1.01]">
-
           {/* Neon animated gradient border (pointer-events none so clicks pass through) */}
           <div
             className="absolute inset-0 rounded-3xl pointer-events-none neon-border"
@@ -147,7 +178,10 @@ export default function Profile() {
           />
 
           {/* inner aurora sheen */}
-          <div className="absolute -inset-[1px] rounded-3xl pointer-events-none inner-sheen" aria-hidden />
+          <div
+            className="absolute -inset-[1px] rounded-3xl pointer-events-none inner-sheen"
+            aria-hidden
+          />
 
           <CardHeader className="text-center relative z-10">
             <CardTitle className="text-3xl font-extrabold text-white tracking-tight drop-shadow-lg">
@@ -171,7 +205,6 @@ export default function Profile() {
           </CardHeader>
 
           <CardContent className="relative z-10 space-y-6 text-white pt-6">
-
             {/* top row - name + email in a subtle row */}
             <div className="grid grid-cols-1 gap-4">
               <div>
@@ -202,7 +235,7 @@ export default function Profile() {
 
               <div>
                 <p className="text-white/60 text-xs uppercase">Member Since</p>
-                <p className="text-lg">{new Date(user.createdAt).toLocaleDateString()}</p>
+                <p className="text-lg">{memberSince}</p>
               </div>
             </div>
 
@@ -238,7 +271,10 @@ export default function Profile() {
               </p>
 
               {user.tier === "FREE" ? (
-                <p className="text-white/60 text-sm">No billing information — upgrade to PRO to add a payment method.</p>
+                <p className="text-white/60 text-sm">
+                  No billing information — upgrade to PRO to add a payment
+                  method.
+                </p>
               ) : (
                 <>
                   <div className="grid grid-cols-1 gap-2 text-white/80 text-sm">
@@ -285,7 +321,10 @@ export default function Profile() {
                   Upgrade to PRO
                 </Button>
               ) : (
-                <Button disabled className="w-full py-3 rounded-xl text-lg font-semibold bg-green-600">
+                <Button
+                  disabled
+                  className="w-full py-3 rounded-xl text-lg font-semibold bg-green-600"
+                >
                   PRO Subscription Active
                 </Button>
               )}
@@ -301,9 +340,12 @@ export default function Profile() {
             {/* neon border */}
             <div className="absolute inset-0 rounded-2xl neon-modal-border pointer-events-none" />
 
-            <h3 className="text-xl font-bold text-white text-center mb-3">Update Payment</h3>
+            <h3 className="text-xl font-bold text-white text-center mb-3">
+              Update Payment
+            </h3>
             <p className="text-white/80 text-sm text-center mb-6">
-              Demo mode — payment update is not live. This modal shows where you'd place the Stripe/Razorpay flow.
+              Demo mode — payment update is not live. This modal shows where
+              you'd place the Stripe/Razorpay flow.
             </p>
 
             {/* demo card preview */}
@@ -314,8 +356,19 @@ export default function Profile() {
             </div>
 
             <div className="flex gap-3 justify-center">
-              <Button onClick={() => setShowPaymentModal(false)} className="bg-sky-600">Close</Button>
-              <Button onClick={() => { setShowPaymentModal(false); alert("Demo: connect real payment gateway here."); }} className="bg-gradient-to-r from-[#7c3aed] to-[#06b6d4]">
+              <Button
+                onClick={() => setShowPaymentModal(false)}
+                className="bg-sky-600"
+              >
+                Close
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowPaymentModal(false);
+                  alert("Demo: connect real payment gateway here.");
+                }}
+                className="bg-gradient-to-r from-[#7c3aed] to-[#06b6d4]"
+              >
                 Connect (Demo)
               </Button>
             </div>
@@ -329,14 +382,30 @@ export default function Profile() {
           <div className="relative w-full max-w-md p-6 rounded-2xl bg-white/6 border border-white/10 backdrop-blur-md shadow-2xl">
             <div className="absolute inset-0 rounded-2xl neon-modal-border-red pointer-events-none" />
 
-            <h3 className="text-xl font-bold text-white text-center mb-3">Cancel Subscription</h3>
+            <h3 className="text-xl font-bold text-white text-center mb-3">
+              Cancel Subscription
+            </h3>
             <p className="text-white/80 text-sm text-center mb-6">
-              Cancelling is disabled in demo mode. In a real app we'd trigger the cancellation flow and update the backend.
+              Cancelling is disabled in demo mode. In a real app we'd trigger
+              the cancellation flow and update the backend.
             </p>
 
             <div className="flex gap-3 justify-center">
-              <Button onClick={() => setShowCancelModal(false)} className="bg-sky-600">Close</Button>
-              <Button onClick={() => { setShowCancelModal(false); alert("Demo: cancellation endpoint would be called."); }} className="bg-red-600">Confirm Cancel</Button>
+              <Button
+                onClick={() => setShowCancelModal(false)}
+                className="bg-sky-600"
+              >
+                Close
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowCancelModal(false);
+                  alert("Demo: cancellation endpoint would be called.");
+                }}
+                className="bg-red-600"
+              >
+                Confirm Cancel
+              </Button>
             </div>
           </div>
         </div>

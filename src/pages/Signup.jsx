@@ -5,6 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Mail, Lock, User } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
+// ----------------------------
+// USE ENV VARIABLE FOR BACKEND
+// ----------------------------
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+
 export default function Signup() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -24,12 +30,14 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:4000/api/auth/signup", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(form),
-});
-
+      // ----------------------------
+      // UPDATED SIGNUP API CALL
+      // ----------------------------
+      const res = await fetch(`${API_BASE_URL}/api/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
 
       const data = await res.json();
 

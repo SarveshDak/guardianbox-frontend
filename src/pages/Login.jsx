@@ -4,12 +4,17 @@ import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardTitle, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-
 import axios from "axios";
 
 // Particle imports
 import Particles from "@tsparticles/react";
 import { loadSlim } from "@tsparticles/slim";
+
+// ----------------------------
+// USE ENV VARIABLE FOR BACKEND
+// ----------------------------
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -33,11 +38,15 @@ export default function Login() {
     try {
       setLoading(true);
 
-      const res = await axios.post("http://localhost:4000/api/auth/login", {
+      // ----------------------------
+      // UPDATED LOGIN API CALL
+      // ----------------------------
+      const res = await axios.post(`${API_BASE_URL}/api/auth/login`, {
         email,
         password,
       });
 
+      // Save token
       localStorage.setItem("token", res.data.token);
 
       navigate("/");

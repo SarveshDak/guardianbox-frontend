@@ -1,5 +1,6 @@
 // Use SAME env variable everywhere!
-const API_BASE_URL = import.meta.env.VITE_API_BASE || "http://localhost:4000";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 
 export class ApiError extends Error {
   constructor(message, statusCode) {
@@ -15,7 +16,11 @@ export class ApiError extends Error {
 export async function uploadEncryptedFile(encryptedBlob, metadata) {
   const formData = new FormData();
 
-  formData.append("file", encryptedBlob, metadata.originalFilename || "encrypted_file");
+  formData.append(
+    "file",
+    encryptedBlob,
+    metadata.originalFilename || "encrypted_file"
+  );
   formData.append("originalFilename", metadata.originalFilename);
   formData.append("size", String(metadata.size));
   formData.append("tier", metadata.tier);
@@ -42,7 +47,10 @@ export async function uploadEncryptedFile(encryptedBlob, metadata) {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new ApiError(error.message || "Failed to upload file", response.status);
+    throw new ApiError(
+      error.message || "Failed to upload file",
+      response.status
+    );
   }
 
   return response.json();
@@ -56,7 +64,10 @@ export async function getFileMetadata(id) {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new ApiError(error.message || "Failed to fetch file metadata", response.status);
+    throw new ApiError(
+      error.message || "Failed to fetch file metadata",
+      response.status
+    );
   }
 
   return response.json();
@@ -74,7 +85,10 @@ export async function downloadEncryptedFile(id, qrToken) {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new ApiError(error.message || "Failed to download file", response.status);
+    throw new ApiError(
+      error.message || "Failed to download file",
+      response.status
+    );
   }
 
   return response.arrayBuffer();
@@ -90,6 +104,9 @@ export async function revokeFile(id) {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new ApiError(error.message || "Failed to revoke file", response.status);
+    throw new ApiError(
+      error.message || "Failed to revoke file",
+      response.status
+    );
   }
 }
