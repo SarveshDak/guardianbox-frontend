@@ -17,13 +17,14 @@ import { toast } from "sonner";
 
 import QRCode from "qrcode";
 import QRModal from "@/components/QRModal";
-
 import DecryptModal from "@/components/DecryptModal";
+
 import { downloadAndDecrypt } from "@/lib/downloadAndDecrypt";
-import { API_BASE_URL } from "@/lib/api"; // ✅ FIXED: proper API URL import
+import { API_BASE_URL } from "@/lib/api"; // ✅ Always use env-based backend URL
 
 const PRO_TIER_KEY = "guardianbox_tier";
 
+/* ⏳ Calculate remaining expiration time */
 function timeRemaining(expiresAt) {
   const now = new Date();
   const exp = new Date(expiresAt);
@@ -31,8 +32,7 @@ function timeRemaining(expiresAt) {
 
   if (diffMs <= 0) return "Expired";
 
-  const diffHours = Math.floor(diffMs / 1000 / 60 / 60);
-
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   if (diffHours < 24) return `${diffHours} hours`;
 
   const days = Math.floor(diffHours / 24);
@@ -43,21 +43,21 @@ const Dashboard = () => {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // decrypt modal
   const [decryptModalOpen, setDecryptModalOpen] = useState(false);
   const [selectedFileId, setSelectedFileId] = useState(null);
 
-  // QR modal
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [qrTTL, setQrTTL] = useState(300);
 
   const [tier, setTier] = useState("free");
 
+  /* Load local tier */
   const loadTier = () => {
     const saved = localStorage.getItem(PRO_TIER_KEY) || "free";
     setTier(saved);
   };
 
+  /* Load files from backend */
   const loadFiles = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/files`);
@@ -71,6 +71,7 @@ const Dashboard = () => {
     }
   };
 
+  /* Initial load */
   useEffect(() => {
     loadTier();
     loadFiles();
@@ -87,18 +88,19 @@ const Dashboard = () => {
     };
   }, []);
 
+  /* Delete file */
   const deleteFile = async (id) => {
     try {
       await fetch(`${API_BASE_URL}/api/files/${id}`, { method: "DELETE" });
 
-      setFiles((prev) => prev.filter((f) => f.id !== id)); // ✅ FIXED
-      toast.success("File deleted");
+      setFiles((prev) => prev.filter((f) => f.id !== id));
+      toast.success("File deleted successfully");
     } catch {
       toast.error("Delete failed");
     }
   };
 
-  // ⭐ QR GENERATOR
+  /* Generate QR code */
   const generateQR = async (fileId) => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/files/${fileId}/qr`);
@@ -128,20 +130,23 @@ const Dashboard = () => {
       <Header />
 
       <div className="container mx-auto px-4 py-12 max-w-6xl">
-        {/* title */}
+
+        {/* Top section */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-4xl font-bold mb-2">Dashboard</h1>
-            <p className="text-muted-foreground">Manage your active file shares</p>
+            <p className="text-muted-foreground">
+              Manage your active file shares
+            </p>
           </div>
           <Link to="/upload">
             <Button className="gradient-hero">
-              <FileIcon className="w-4 h-4 mr-2" />
-              Share New File
+              <FileIcon className="w-4 h-4 mr-2" /> Share New File
             </Button>
           </Link>
         </div>
 
+        {/* Upgrade box */}
         {tier !== "pro" && (
           <Card className="p-6 border-primary bg-primary/5 backdrop-blur-sm mb-8">
             <div className="flex items-start gap-4">
@@ -149,7 +154,7 @@ const Dashboard = () => {
               <div className="flex-1">
                 <h3 className="font-bold text-lg mb-1">Upgrade to Pro</h3>
                 <p className="text-muted-foreground mb-4">
-                  Get 5GB uploads, custom expiration & unlimited downloads.
+                  Unlock 5GB uploads, custom expiration & unlimited downloads.
                 </p>
                 <Link to="/upgrade">
                   <Button variant="outline">View Pro Features</Button>
@@ -159,7 +164,7 @@ const Dashboard = () => {
           </Card>
         )}
 
-        {/* TABLE */}
+        {/* File table */}
         <Card className="border-border bg-card/50 backdrop-blur-sm overflow-hidden">
           <div className="p-6 border-b border-border">
             <h2 className="text-xl font-bold">Active Shares</h2>
@@ -279,7 +284,7 @@ const Dashboard = () => {
         }}
       />
 
-      {/* QR MODAL */}
+      {/* QR modal */}
       {qrDataUrl && (
         <QRModal
           dataUrl={qrDataUrl}

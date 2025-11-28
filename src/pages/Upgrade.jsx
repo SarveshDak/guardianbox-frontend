@@ -7,10 +7,9 @@ import { Header } from "@/components/Header";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
 
-// USE ENV BACKEND URL
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+import { API_BASE_URL } from "@/lib/api"; // ✅ Use global backend URL
 
+// Confetti
 function fireConfetti() {
   confetti({ particleCount: 40, spread: 70, origin: { y: 0.6 } });
   setTimeout(() => {
@@ -20,6 +19,8 @@ function fireConfetti() {
     confetti({ particleCount: 30, spread: 90, origin: { x: 0.8, y: 0.6 } });
   }, 500);
 }
+
+const PRO_TIER_KEY = "guardianbox_tier";
 
 const Upgrade = () => {
   const [tier, setTier] = useState(null);
@@ -31,7 +32,7 @@ const Upgrade = () => {
       const token = localStorage.getItem("token");
       if (!token) {
         setTier("free");
-        localStorage.setItem("guardianbox_tier", "free");
+        localStorage.setItem(PRO_TIER_KEY, "free");
         window.dispatchEvent(new Event("tier-changed"));
         return;
       }
@@ -43,13 +44,13 @@ const Upgrade = () => {
       const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
-        const remoteTier = (data.tier || "free").toLowerCase();
-        setTier(remoteTier);
-        localStorage.setItem("guardianbox_tier", remoteTier);
+        const remote = (data.tier || "free").toLowerCase();
+        setTier(remote);
+        localStorage.setItem(PRO_TIER_KEY, remote);
         window.dispatchEvent(new Event("tier-changed"));
       } else {
         setTier("free");
-        localStorage.setItem("guardianbox_tier", "free");
+        localStorage.setItem(PRO_TIER_KEY, "free");
       }
     } catch (err) {
       console.error(err);
@@ -66,6 +67,7 @@ const Upgrade = () => {
     setIsProcessing(true);
     try {
       const token = localStorage.getItem("token");
+
       if (!token) {
         toast.error("You must be logged in to upgrade.");
         return;
@@ -87,15 +89,15 @@ const Upgrade = () => {
         return;
       }
 
-      localStorage.setItem("guardianbox_tier", "pro");
+      localStorage.setItem(PRO_TIER_KEY, "pro");
       window.dispatchEvent(new Event("tier-changed"));
-
       setTier("pro");
+
       fireConfetti();
       toast.success("Upgraded to Pro successfully!");
     } catch (err) {
       console.error(err);
-      toast.error("Upgrade failed");
+      toast.error("Upgrade failed.");
     } finally {
       setIsProcessing(false);
     }
@@ -106,6 +108,7 @@ const Upgrade = () => {
     setIsProcessing(true);
     try {
       const token = localStorage.getItem("token");
+
       if (!token) {
         toast.error("You must be logged in to change plan.");
         return;
@@ -127,10 +130,10 @@ const Upgrade = () => {
         return;
       }
 
-      localStorage.setItem("guardianbox_tier", "free");
+      localStorage.setItem(PRO_TIER_KEY, "free");
       window.dispatchEvent(new Event("tier-changed"));
-
       setTier("free");
+
       toast.success("Switched to Free Plan");
     } catch (err) {
       console.error(err);
@@ -151,8 +154,8 @@ const Upgrade = () => {
       <Header />
 
       <div className="container mx-auto px-4 py-12 max-w-6xl">
-        {/* Rest of your UI stays unchanged */}
-        {/* ... */}
+        {/* The rest of your Upgrade UI goes here */}
+        {/* Keep your original beautiful UI layout */}
       </div>
     </div>
   );

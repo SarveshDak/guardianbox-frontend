@@ -11,11 +11,8 @@ import { toast } from "sonner";
 import Particles from "@tsparticles/react";
 import { loadSlim } from "@tsparticles/slim";
 
-// ----------------------------
-// USE ENV VARIABLE FOR BACKEND
-// ----------------------------
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+// Import backend URL from api.js (✔ clean & reusable)
+import { API_BASE_URL } from "@/lib/api";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -49,7 +46,10 @@ export default function Login() {
       // Save token + user info
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("guardianbox_user", JSON.stringify(res.data.user));
-      localStorage.setItem("guardianbox_tier", res.data.user.tier.toLowerCase());
+      localStorage.setItem(
+        "guardianbox_tier",
+        (res.data.user.tier || "free").toLowerCase()
+      );
 
       // Notify across app
       window.dispatchEvent(new Event("tier-changed"));
@@ -57,7 +57,9 @@ export default function Login() {
       toast.success("Login successful!");
       navigate("/");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Login failed");
+      const message =
+        err.response?.data?.message || "Login failed. Please try again.";
+      toast.error(message);
     } finally {
       setLoading(false);
     }

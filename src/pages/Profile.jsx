@@ -8,18 +8,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Mail, User, Shield, Crown, CreditCard } from "lucide-react";
-
-/**
- * Profile.jsx — updated to call deployed backend + improved error handling
- */
-
-const API_BASE = "https://guardianbox-backend-production-0605.up.railway.app";
+import { API_BASE_URL } from "@/lib/api";  // ✅ GLOBAL BACKEND URL
 
 export default function Profile() {
   const [user, setUser] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [particles, setParticles] = useState([]);
+
   const navigate = useNavigate();
 
   // ---------------- FETCH PROFILE ----------------
@@ -32,20 +28,18 @@ export default function Profile() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/me`, {
+      const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      // If not OK, attempt to read backend message, then navigate to login
       if (!res.ok) {
-        let errMsg = res.statusText;
+        let msg = "Authentication Failed";
         try {
           const errJson = await res.json();
-          errMsg = errJson?.message || errMsg;
-        } catch (e) {
-          // ignore JSON parse errors
-        }
-        console.warn("Failed fetching profile:", errMsg);
+          msg = errJson?.message || msg;
+        } catch {}
+
+        console.warn("Profile fetch failed:", msg);
         navigate("/login");
         return;
       }
@@ -53,7 +47,7 @@ export default function Profile() {
       const data = await res.json();
       setUser(data);
     } catch (err) {
-      console.error("Error fetching profile:", err);
+      console.error("Profile load error:", err);
       navigate("/login");
     }
   };
@@ -61,22 +55,20 @@ export default function Profile() {
   useEffect(() => {
     fetchProfile();
 
-    // generate floating particles (for background)
+    // Generate floating particles
     const count = 18;
-    const p = new Array(count).fill(0).map(() => {
-      return {
-        id: Math.random().toString(36).slice(2, 9),
-        left: Math.random() * 100, // percent
-        top: Math.random() * 100, // percent
-        size: 4 + Math.random() * 12, // px
-        delay: Math.random() * 4, // s
-        duration: 6 + Math.random() * 6, // s
-        hueShift: Math.random() * 360,
-        opacity: 0.15 + Math.random() * 0.35,
-      };
-    });
+    const p = new Array(count).fill(0).map(() => ({
+      id: Math.random().toString(36).slice(2),
+      left: Math.random() * 100,
+      top: Math.random() * 100,
+      size: 4 + Math.random() * 12,
+      delay: Math.random() * 4,
+      duration: 6 + Math.random() * 6,
+      hueShift: Math.random() * 360,
+      opacity: 0.15 + Math.random() * 0.35,
+    }));
     setParticles(p);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); 
 
   // ---------------- HANDLE UPGRADE ----------------
   const handleUpgrade = async () => {
@@ -89,7 +81,7 @@ export default function Profile() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/upgrade`, {
+      const res = await fetch(`${API_BASE_URL}/api/auth/upgrade`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -97,27 +89,22 @@ export default function Profile() {
         },
       });
 
-      // if error, try to parse message and show it
       if (!res.ok) {
-        let errMsg = res.statusText;
+        let msg = res.statusText;
         try {
-          const errJson = await res.json();
-          errMsg = errJson?.message || errMsg;
-        } catch (e) {}
-        alert(errMsg || "Upgrade failed");
+          const json = await res.json();
+          msg = json?.message || msg;
+        } catch {}
+        alert(msg);
         return;
       }
 
-      const data = await res.json();
-      // successful; refresh profile
+      await res.json();
       fetchProfile();
-      // you can show success message if desired
-      if (data?.message) {
-        alert(data.message);
-      }
+      alert("Upgraded to PRO successfully!");
     } catch (err) {
       console.error("Upgrade error:", err);
-      alert("Something went wrong");
+      alert("Something went wrong.");
     }
   };
 
@@ -128,26 +115,24 @@ export default function Profile() {
       </div>
     );
 
-  // ---------- Helper: masked card number (demo) ----------
   const maskedCard = "•••• •••• •••• 4242";
 
-  // safe createdAt display
-  const memberSince = user?.createdAt
+  const memberSince = user.createdAt
     ? new Date(user.createdAt).toLocaleDateString()
     : "—";
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-[#030612]">
-      {/* Aurora animated background */}
+      {/* Aurora background */}
       <div className="absolute inset-0 -z-20 overflow-hidden">
-        <div className="aurora-layer -z-20" aria-hidden />
-        <div className="aurora-wave -z-20" aria-hidden />
+        <div className="aurora-layer -z-20" />
+        <div className="aurora-wave -z-20" />
       </div>
 
-      {/* subtle vignette */}
+      {/* vignette */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 pointer-events-none -z-10" />
 
-      {/* floating particles (behind card) */}
+      {/* floating particles */}
       <div className="absolute inset-0 -z-10 pointer-events-none">
         {particles.map((pt) => (
           <span
@@ -169,43 +154,32 @@ export default function Profile() {
 
       {/* center container */}
       <div className="min-h-screen flex items-center justify-center p-6">
-        {/* GLASS CARD */}
-        <Card className="relative w-full max-w-xl bg-white/6 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-3xl p-6 overflow-visible transform transition-all duration-450 hover:scale-[1.01]">
-          {/* Neon animated gradient border (pointer-events none so clicks pass through) */}
-          <div
-            className="absolute inset-0 rounded-3xl pointer-events-none neon-border"
-            aria-hidden
-          />
-
-          {/* inner aurora sheen */}
-          <div
-            className="absolute -inset-[1px] rounded-3xl pointer-events-none inner-sheen"
-            aria-hidden
-          />
+        <Card className="relative w-full max-w-xl bg-white/6 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-3xl p-6">
+          {/* neon border */}
+          <div className="absolute inset-0 rounded-3xl neon-border pointer-events-none" />
 
           <CardHeader className="text-center relative z-10">
-            <CardTitle className="text-3xl font-extrabold text-white tracking-tight drop-shadow-lg">
+            <CardTitle className="text-3xl font-extrabold text-white tracking-tight">
               Your Profile
             </CardTitle>
 
-            {/* Tier badge */}
             <div className="mt-3 flex justify-center">
               {user.tier === "PRO" ? (
-                <div className="pro-badge relative inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-semibold">
-                  <Crown className="w-4 h-4 text-yellow-300 drop-shadow-md" />
+                <div className="pro-badge inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-semibold">
+                  <Crown className="w-4 h-4 text-yellow-300" />
                   PRO Member
                 </div>
               ) : (
-                <div className="free-badge relative inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-semibold">
-                  <Shield className="w-4 h-4 text-sky-300 drop-shadow-sm" />
+                <div className="free-badge inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-semibold">
+                  <Shield className="w-4 h-4 text-sky-300" />
                   Free Plan
                 </div>
               )}
             </div>
           </CardHeader>
 
-          <CardContent className="relative z-10 space-y-6 text-white pt-6">
-            {/* top row - name + email in a subtle row */}
+          <CardContent className="space-y-6 text-white pt-6 relative z-10">
+            {/* name + email */}
             <div className="grid grid-cols-1 gap-4">
               <div>
                 <p className="text-white/60 text-xs uppercase">Name</p>
@@ -224,8 +198,8 @@ export default function Profile() {
               </div>
             </div>
 
-            {/* account tier and member since */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            {/* tier + member since */}
+            <div className="flex flex-col md:flex-row md:justify-between gap-3">
               <div>
                 <p className="text-white/60 text-xs uppercase">Account Tier</p>
                 <p className="text-xl font-semibold">
@@ -242,7 +216,7 @@ export default function Profile() {
             {/* features */}
             <div className="p-4 rounded-2xl bg-white/4 border border-white/8">
               <p className="text-white/80 text-sm font-semibold mb-3">
-                Features Included in Your Plan
+                Features Included
               </p>
               {user.tier === "FREE" ? (
                 <ul className="text-white/70 space-y-2 text-sm">
@@ -250,21 +224,18 @@ export default function Profile() {
                   <li>• Files expire in 24 hours</li>
                   <li>• Up to 3 downloads per file</li>
                   <li>• Standard AES-256 Encryption</li>
-                  <li>• Basic Support</li>
                 </ul>
               ) : (
                 <ul className="text-white/70 space-y-2 text-sm">
-                  <li>• 5GB Maximum Upload Size</li>
-                  <li>• Permanent secure file storage</li>
+                  <li>• 5GB Upload Size</li>
                   <li>• Unlimited downloads</li>
-                  <li>• Fast-track priority support</li>
-                  <li>• Enhanced Zero-Knowledge encryption</li>
-                  <li>• PRO Dashboard analytics</li>
+                  <li>• Priority Support</li>
+                  <li>• Enhanced Encryption</li>
                 </ul>
               )}
             </div>
 
-            {/* payment & billing */}
+            {/* billing */}
             <div className="p-4 rounded-2xl bg-white/4 border border-white/8">
               <p className="text-white/80 text-sm font-semibold mb-3 flex items-center gap-2">
                 <CreditCard className="w-4 h-4" /> Payment & Billing
@@ -272,12 +243,11 @@ export default function Profile() {
 
               {user.tier === "FREE" ? (
                 <p className="text-white/60 text-sm">
-                  No billing information — upgrade to PRO to add a payment
-                  method.
+                  No billing information. Upgrade to Pro to enable billing.
                 </p>
               ) : (
                 <>
-                  <div className="grid grid-cols-1 gap-2 text-white/80 text-sm">
+                  <div className="grid gap-2 text-white/80 text-sm">
                     <div className="flex justify-between">
                       <span>Payment Method:</span>
                       <span className="font-semibold">{maskedCard}</span>
@@ -286,22 +256,18 @@ export default function Profile() {
                       <span>Next Billing Date:</span>
                       <span className="font-semibold">12/27/2025</span>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span>Subscription:</span>
-                      <span className="font-semibold text-green-400">Active</span>
-                    </div>
                   </div>
 
                   <div className="flex gap-3 mt-4">
                     <Button
-                      className="flex-1 bg-gradient-to-r from-[#4f46e5] to-[#06b6d4] hover:scale-[1.02] transform transition"
+                      className="flex-1 bg-gradient-to-r from-[#4f46e5] to-[#06b6d4]"
                       onClick={() => setShowPaymentModal(true)}
                     >
                       Update Payment
                     </Button>
 
                     <Button
-                      className="flex-1 bg-red-600 hover:bg-red-700"
+                      className="flex-1 bg-red-600"
                       onClick={() => setShowCancelModal(true)}
                     >
                       Cancel
@@ -311,61 +277,51 @@ export default function Profile() {
               )}
             </div>
 
-            {/* bottom CTA */}
-            <div>
-              {user.tier === "FREE" ? (
-                <Button
-                  className="w-full py-3 rounded-xl text-lg font-semibold bg-gradient-to-r from-[#06b6d4] to-[#7c3aed] hover:scale-[1.02] transform transition shadow-lg"
-                  onClick={handleUpgrade}
-                >
-                  Upgrade to PRO
-                </Button>
-              ) : (
-                <Button
-                  disabled
-                  className="w-full py-3 rounded-xl text-lg font-semibold bg-green-600"
-                >
-                  PRO Subscription Active
-                </Button>
-              )}
-            </div>
+            {/* upgrade button */}
+            {user.tier === "FREE" ? (
+              <Button
+                className="w-full py-3 text-lg font-semibold bg-gradient-to-r from-[#06b6d4] to-[#7c3aed]"
+                onClick={handleUpgrade}
+              >
+                Upgrade to PRO
+              </Button>
+            ) : (
+              <Button disabled className="w-full py-3 text-lg font-semibold bg-green-600">
+                PRO Subscription Active
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      {/* ========== PAYMENT MODAL (glass + neon + particles) ========== */}
+      {/* ================= MODALS ================= */}
+
+      {/* PAYMENT MODAL */}
       {showPaymentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="relative w-full max-w-md p-6 rounded-2xl bg-white/6 border border-white/10 backdrop-blur-md shadow-2xl">
-            {/* neon border */}
-            <div className="absolute inset-0 rounded-2xl neon-modal-border pointer-events-none" />
+            <div className="absolute inset-0 rounded-2xl neon-modal-border" />
 
             <h3 className="text-xl font-bold text-white text-center mb-3">
               Update Payment
             </h3>
             <p className="text-white/80 text-sm text-center mb-6">
-              Demo mode — payment update is not live. This modal shows where
-              you'd place the Stripe/Razorpay flow.
+              Demo mode — no real payment updates.
             </p>
 
-            {/* demo card preview */}
             <div className="mb-4 p-4 rounded-xl bg-white/4 border border-white/8">
               <p className="text-white/80 text-sm">Card</p>
               <div className="mt-2 text-lg font-semibold">{maskedCard}</div>
-              <div className="mt-2 text-white/60 text-sm">Expiry •••• / ••••</div>
             </div>
 
             <div className="flex gap-3 justify-center">
-              <Button
-                onClick={() => setShowPaymentModal(false)}
-                className="bg-sky-600"
-              >
+              <Button onClick={() => setShowPaymentModal(false)} className="bg-sky-600">
                 Close
               </Button>
               <Button
                 onClick={() => {
                   setShowPaymentModal(false);
-                  alert("Demo: connect real payment gateway here.");
+                  alert("Demo only — integrate Stripe/Razorpay here.");
                 }}
                 className="bg-gradient-to-r from-[#7c3aed] to-[#06b6d4]"
               >
@@ -376,31 +332,27 @@ export default function Profile() {
         </div>
       )}
 
-      {/* ========== CANCEL MODAL ========== */}
+      {/* CANCEL MODAL */}
       {showCancelModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="relative w-full max-w-md p-6 rounded-2xl bg-white/6 border border-white/10 backdrop-blur-md shadow-2xl">
-            <div className="absolute inset-0 rounded-2xl neon-modal-border-red pointer-events-none" />
+            <div className="absolute inset-0 rounded-2xl neon-modal-border-red" />
 
             <h3 className="text-xl font-bold text-white text-center mb-3">
               Cancel Subscription
             </h3>
             <p className="text-white/80 text-sm text-center mb-6">
-              Cancelling is disabled in demo mode. In a real app we'd trigger
-              the cancellation flow and update the backend.
+              Demo mode — No real cancellation.
             </p>
 
             <div className="flex gap-3 justify-center">
-              <Button
-                onClick={() => setShowCancelModal(false)}
-                className="bg-sky-600"
-              >
+              <Button onClick={() => setShowCancelModal(false)} className="bg-sky-600">
                 Close
               </Button>
               <Button
                 onClick={() => {
                   setShowCancelModal(false);
-                  alert("Demo: cancellation endpoint would be called.");
+                  alert("Demo only — API cancel endpoint goes here.");
                 }}
                 className="bg-red-600"
               >
@@ -411,16 +363,15 @@ export default function Profile() {
         </div>
       )}
 
-      {/* ================= INLINE STYLES & KEYFRAMES ================= */}
+      {/* ================== STYLES ================== */}
+
       <style>{`
-        /* AURORA background */
         .aurora-layer {
           position: absolute;
           inset: -20% -40% -20% -40%;
           background: radial-gradient(40% 60% at 10% 20%, rgba(124,58,237,0.10), transparent),
                       radial-gradient(30% 50% at 80% 70%, rgba(14,165,233,0.08), transparent);
-          transform: translateZ(0);
-          filter: blur(48px) saturate(110%);
+          filter: blur(48px);
           animation: auroraMove 12s linear infinite;
         }
 
@@ -429,116 +380,69 @@ export default function Profile() {
           inset: -30% -40% -30% -40%;
           background: linear-gradient(120deg, rgba(99,102,241,0.035), rgba(236,72,153,0.02), rgba(6,182,212,0.03));
           transform: skewY(-6deg);
-          filter: blur(60px) saturate(120%);
+          filter: blur(60px);
           animation: auroraShift 10s ease-in-out infinite;
         }
 
         @keyframes auroraMove {
-          0% { transform: translateX(-5%) scale(1) }
-          50% { transform: translateX(5%) scale(1.03) }
-          100% { transform: translateX(-5%) scale(1) }
+          0% { transform: translateX(-5%) }
+          50% { transform: translateX(5%) }
+          100% { transform: translateX(-5%) }
         }
 
         @keyframes auroraShift {
-          0% { transform: translateY(0) skewY(-6deg) }
-          50% { transform: translateY(-8%) skewY(-4deg) }
-          100% { transform: translateY(0) skewY(-6deg) }
+          0% { transform: translateY(0) }
+          50% { transform: translateY(-8%) }
+          100% { transform: translateY(0) }
         }
 
-        /* floating particles */
         .particle {
           position: absolute;
-          border-radius: 999px;
-          background: linear-gradient(90deg, rgba(124,58,237,0.9), rgba(6,182,212,0.9));
-          box-shadow: 0 6px 18px rgba(124,58,237,0.12), 0 2px 6px rgba(6,182,212,0.08);
-          transform: translate3d(0, 0, 0);
+          border-radius: 50%;
+          background: linear-gradient(90deg, rgba(124,58,237,.9), rgba(6,182,212,.9));
           animation-name: floatUp;
           animation-timing-function: ease-in-out;
           animation-iteration-count: infinite;
         }
 
         @keyframes floatUp {
-          0% {
-            transform: translateY(0) scale(1);
-            opacity: 0;
-          }
-          10% {
-            opacity: 1;
-          }
-          50% {
-            transform: translateY(-20px) scale(1.05);
-          }
-          100% {
-            transform: translateY(-40px) scale(0.9);
-            opacity: 0;
-          }
+          0% { transform: translateY(0); opacity: 0; }
+          10% { opacity: 1; }
+          50% { transform: translateY(-20px); }
+          100% { transform: translateY(-40px); opacity: 0; }
         }
 
-        /* neon gradient border around card */
         .neon-border {
-          pointer-events: none;
+          background: linear-gradient(
+            90deg,
+            rgba(124,58,237,0.06),
+            rgba(236,72,153,0.03),
+            rgba(6,182,212,0.03),
+            rgba(124,58,237,0.06)
+          );
           border-radius: 18px;
-          box-shadow: 0 8px 40px rgba(124,58,237,0.08), inset 0 1px 0 rgba(255,255,255,0.02);
-          background: linear-gradient(90deg,
-            rgba(124,58,237,0.06) 0%,
-            rgba(236,72,153,0.03) 40%,
-            rgba(6,182,212,0.03) 60%,
-            rgba(124,58,237,0.06) 100%);
-          mask-image: linear-gradient(#000, #000);
         }
 
-        /* inner sheen for subtle aurora reflection */
-        .inner-sheen {
-          pointer-events: none;
-          background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0));
-          mix-blend-mode: overlay;
-        }
-
-        /* pro badge pulse */
         .pro-badge {
-          background: linear-gradient(90deg, rgba(250,204,21,0.12), rgba(250,204,21,0.06));
+          background: rgba(250,204,21,0.12);
           border: 1px solid rgba(250,204,21,0.18);
-          box-shadow: 0 6px 26px rgba(250,204,21,0.08), 0 2px 6px rgba(0,0,0,0.35);
-          animation: badgePulse 2.4s ease-in-out infinite;
           color: #facc15;
         }
 
         .free-badge {
-          background: linear-gradient(90deg, rgba(59,130,246,0.06), rgba(6,182,212,0.03));
+          background: rgba(59,130,246,0.06);
           border: 1px solid rgba(56,189,248,0.08);
           color: #93c5fd;
         }
 
-        @keyframes badgePulse {
-          0% { transform: translateY(0) scale(1) }
-          50% { transform: translateY(-4px) scale(1.02) }
-          100% { transform: translateY(0) scale(1) }
-        }
-
-        /* modal neon borders */
         .neon-modal-border {
-          box-shadow: 0 8px 40px rgba(99,102,241,0.08), inset 0 0 36px rgba(14,165,233,0.06);
-          background: linear-gradient(90deg, rgba(99,102,241,0.06), rgba(14,165,233,0.04));
+          background: rgba(99,102,241,0.06);
           border-radius: 14px;
         }
 
         .neon-modal-border-red {
-          box-shadow: 0 8px 40px rgba(239,68,68,0.08), inset 0 0 36px rgba(239,68,68,0.04);
-          background: linear-gradient(90deg, rgba(239,68,68,0.06), rgba(236,72,153,0.04));
+          background: rgba(239,68,68,0.06);
           border-radius: 14px;
-        }
-
-        /* entrance animations */
-        @keyframes modalFade {
-          from { opacity: 0; transform: translateY(6px) scale(.98); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        .animate-fadeIn { animation: modalFade 220ms cubic-bezier(.2,.9,.3,1) both; }
-        .animate-scaleIn { animation: modalFade 260ms cubic-bezier(.2,.9,.3,1) both; }
-
-        /* small responsive tweaks */
-        @media (max-width: 640px) {
-          .neon-border { border-radius: 14px; }
         }
       `}</style>
     </div>

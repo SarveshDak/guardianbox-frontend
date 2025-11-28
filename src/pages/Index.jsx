@@ -11,7 +11,9 @@ const Index = () => {
       <Header />
 
       <main className="container mx-auto px-4 py-16 max-w-5xl">
-        {/* Hero Section */}
+        {/* ------------------------------- */}
+        {/* HERO SECTION */}
+        {/* ------------------------------- */}
         <section className="grid gap-10 md:grid-cols-[2fr,1.5fr] items-center">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-xs text-muted-foreground mb-4">
@@ -26,8 +28,10 @@ const Index = () => {
 
             <p className="text-muted-foreground text-lg mb-6">
               GuardianBox encrypts files in your browser before upload.
-              Only people with the secret password can decrypt –{" "}
-              <span className="font-semibold">not even the server can see them.</span>
+              Only people with the secret password can decrypt —
+              <span className="font-semibold">
+                {" "}not even the server can see them.
+              </span>
             </p>
 
             <div className="flex flex-wrap items-center gap-3 mb-6">
@@ -53,7 +57,9 @@ const Index = () => {
             </p>
           </div>
 
-          {/* Right-side “How it works” card */}
+          {/* ------------------------------- */}
+          {/* RIGHT-SIDE “HOW IT WORKS” CARD */}
+          {/* ------------------------------- */}
           <Card className="border-border bg-card/60 backdrop-blur-sm p-6 space-y-5">
             <h2 className="font-semibold text-lg mb-2 flex items-center gap-2">
               <Lock className="w-5 h-5 text-primary" />
@@ -73,6 +79,7 @@ const Index = () => {
                   </p>
                 </div>
               </li>
+
               <li className="flex gap-3">
                 <span className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
                   2
@@ -80,11 +87,12 @@ const Index = () => {
                 <div>
                   <p className="font-medium">Share a secure link</p>
                   <p className="text-muted-foreground">
-                    We store only the encrypted blob and metadata. You send the link
-                    however you like – chat, email, ticket, etc.
+                    We store only the encrypted blob and metadata. Send the link
+                    however you like — chat, email, ticket, etc.
                   </p>
                 </div>
               </li>
+
               <li className="flex gap-3">
                 <span className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
                   3
@@ -101,11 +109,11 @@ const Index = () => {
           </Card>
         </section>
 
-        {/* Small footer note */}
+        {/* FOOTER NOTE */}
         <section className="mt-16 text-center text-xs text-muted-foreground">
           <p>
-            Demo build of GuardianBox. In production, you’d connect this UI to your
-            live API, storage, and auth of choice.
+            Demo build of GuardianBox. In production, this UI connects to your live
+            API, storage, and authentication.
           </p>
         </section>
       </main>

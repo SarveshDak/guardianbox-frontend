@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { useParams, useLocation } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import {
   Download as DownloadIcon,
   Lock,
@@ -16,12 +16,16 @@ import { Header } from "@/components/Header";
 import { ProgressSteps } from "@/components/ProgressSteps";
 import { toast } from "sonner";
 
-import { getFileMetadata, downloadEncryptedFile, API_BASE_URL } from "@/lib/api";
+import {
+  getFileMetadata,
+  downloadEncryptedFile,
+  API_BASE_URL,
+} from "@/lib/api";
+
 import { decryptFile, downloadBlob } from "@/lib/crypto";
 
 const Download = () => {
   const { id } = useParams();
-  const location = useLocation();
 
   const [metadata, setMetadata] = useState(null);
   const [password, setPassword] = useState("");
@@ -32,16 +36,16 @@ const Download = () => {
 
   const passwordRef = useRef(null);
 
-  // ------------------------------
-  // Load Metadata + Autofill Password
-  // ------------------------------
+  // ---------------------------------------------------
+  // LOAD METADATA + AUTO-DETECT PASSWORD FROM URL HASH
+  // ---------------------------------------------------
   useEffect(() => {
     const loadMetadata = async () => {
       try {
         const data = await getFileMetadata(id);
         setMetadata(data);
 
-        // AUTO-DETECT PASSWORD FROM HASH (#pw=xxx)
+        // Detect password from hash: #pw=xxx OR #password=xxx OR #key=xxx
         const hash = window.location.hash;
         const match =
           hash.match(/pw=([^&]+)/) ||
@@ -59,22 +63,25 @@ const Download = () => {
     loadMetadata();
   }, [id]);
 
-  // ------------------------------
+  // ---------------------------------------------------
   // DOWNLOAD + DECRYPT PROCESS
-  // ------------------------------
+  // ---------------------------------------------------
   const handleDownload = async () => {
-    if (!password) return toast.error("Please enter the password.");
+    if (!password) {
+      toast.error("Please enter the password.");
+      return;
+    }
 
     setIsDownloading(true);
     setDownloadStep(1);
 
     try {
-      // STEP 1: Download encrypted file
+      // Fetch encrypted file
       const encryptedFile = await downloadEncryptedFile(id);
 
       setDownloadStep(2);
 
-      // STEP 2: Decrypt file
+      // Decrypt file in-browser
       const decryptedBlob = await decryptFile(
         encryptedFile,
         password,
@@ -84,7 +91,7 @@ const Download = () => {
 
       setDownloadStep(3);
 
-      // STEP 3: Save file
+      // Save to device
       downloadBlob(decryptedBlob, metadata.originalFilename);
 
       toast.success("File decrypted successfully!");
@@ -103,9 +110,9 @@ const Download = () => {
     }
   };
 
-  // ------------------------------
+  // ---------------------------------------------------
   // LOADING STATE
-  // ------------------------------
+  // ---------------------------------------------------
   if (isLoading) {
     return (
       <div className="min-h-screen">
@@ -117,9 +124,9 @@ const Download = () => {
     );
   }
 
-  // ------------------------------
-  // FILE NOT FOUND
-  // ------------------------------
+  // ---------------------------------------------------
+  // FILE NOT FOUND / BACKEND ERROR
+  // ---------------------------------------------------
   if (error || !metadata) {
     return (
       <div className="min-h-screen">
@@ -139,9 +146,9 @@ const Download = () => {
     );
   }
 
-  // ------------------------------
+  // ---------------------------------------------------
   // FILE EXPIRED OR UNAVAILABLE
-  // ------------------------------
+  // ---------------------------------------------------
   if (metadata.status !== "ACTIVE") {
     return (
       <div className="min-h-screen">
@@ -159,7 +166,7 @@ const Download = () => {
               <div className="text-sm text-muted-foreground space-y-1">
                 <p>Expires: {new Date(metadata.expiresAt).toLocaleString()}</p>
                 <p>
-                  Downloads remaining:{" "}
+                  Downloads left:{" "}
                   {metadata.remainingDownloads === -1
                     ? "Unlimited"
                     : metadata.remainingDownloads}
@@ -172,9 +179,9 @@ const Download = () => {
     );
   }
 
-  // ------------------------------
+  // ---------------------------------------------------
   // MAIN DOWNLOAD UI
-  // ------------------------------
+  // ---------------------------------------------------
   return (
     <div className="min-h-screen">
       <Header />
@@ -187,7 +194,7 @@ const Download = () => {
           The file will be decrypted locally in your browser.
         </p>
 
-        {/* Progress */}
+        {/* Progress Indicator */}
         {isDownloading && (
           <div className="mb-8">
             <ProgressSteps
@@ -203,17 +210,15 @@ const Download = () => {
 
         <Card className="p-8 shadow-lg bg-card/50 backdrop-blur-sm border-border">
           <div className="space-y-6">
-            {/* File Summary */}
+            {/* File summary */}
             <div className="flex items-center gap-4 p-4 bg-muted/30 rounded-xl border">
               <div className="p-3 bg-primary/10 rounded-lg">
                 <FileIcon className="w-8 h-8 text-primary" />
               </div>
-
               <div>
                 <h3 className="font-semibold text-lg">
                   {metadata.originalFilename}
                 </h3>
-
                 <p className="text-sm text-muted-foreground">
                   {(metadata.size / 1024 / 1024).toFixed(2)} MB • expires{" "}
                   {new Date(metadata.expiresAt).toLocaleString()}
@@ -240,7 +245,7 @@ const Download = () => {
               </div>
             )}
 
-            {/* Autofilled Password Notice */}
+            {/* Autofill Password Notice */}
             {password && (
               <div className="p-4 rounded-lg bg-primary/10 border border-primary/20 text-sm">
                 <Lock className="w-4 h-4 inline mr-2" />
@@ -267,7 +272,7 @@ const Download = () => {
             </Button>
 
             <p className="text-xs text-center text-muted-foreground">
-              Decryption happens on your device. Password is never sent to the server.
+              Decryption happens on your device. The password is never sent to the server.
             </p>
           </div>
         </Card>
