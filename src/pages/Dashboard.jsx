@@ -21,6 +21,7 @@ import DecryptModal from "@/components/DecryptModal";
 
 import { downloadAndDecrypt } from "@/lib/downloadAndDecrypt";
 import { API_BASE_URL } from "@/lib/api"; // ✅ Always use env-based backend URL
+console.log("API_BASE_URL =", API_BASE_URL);
 
 const PRO_TIER_KEY = "guardianbox_tier";
 
