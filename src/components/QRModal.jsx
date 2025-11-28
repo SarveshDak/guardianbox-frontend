@@ -2,17 +2,17 @@ import React, { useEffect, useState } from "react";
 import { X, Copy, Download, RefreshCcw } from "lucide-react";
 import { toast } from "sonner";
 
-const QRModal = ({ dataUrl, ttl, onClose, onRefresh }) => {
+export default function QRModal({ dataUrl, downloadUrl, ttl, onClose, onRefresh }) {
   const [remaining, setRemaining] = useState(ttl);
 
-  // countdown timer
+  // Countdown timer
   useEffect(() => {
     setRemaining(ttl);
     const interval = setInterval(() => {
       setRemaining((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
-          onRefresh?.(); // auto refresh QR after expiration
+          onRefresh?.();
           return 0;
         }
         return prev - 1;
@@ -22,18 +22,17 @@ const QRModal = ({ dataUrl, ttl, onClose, onRefresh }) => {
     return () => clearInterval(interval);
   }, [ttl]);
 
-  // Copy QR link
+  // Copy link
   const copyLink = async () => {
     try {
-      const text = dataUrl; // or pass qrUrl if you prefer link only
-      await navigator.clipboard.writeText(text);
-      toast.success("QR link copied!");
+      await navigator.clipboard.writeText(downloadUrl);
+      toast.success("Download link copied!");
     } catch {
       toast.error("Failed to copy");
     }
   };
 
-  // Download QR PNG
+  // Download QR image
   const downloadQR = () => {
     const a = document.createElement("a");
     a.href = dataUrl;
@@ -63,7 +62,11 @@ const QRModal = ({ dataUrl, ttl, onClose, onRefresh }) => {
           className="w-64 h-64 mx-auto rounded-lg shadow border"
         />
 
-        {/* Countdown */}
+        {/* Show the actual link */}
+        <p className="text-center text-xs text-muted-foreground mt-3 break-all">
+          {downloadUrl}
+        </p>
+
         <p className="text-center text-sm mt-4 text-muted-foreground">
           Expires in <span className="font-semibold text-white">{remaining}s</span>
         </p>
@@ -76,7 +79,7 @@ const QRModal = ({ dataUrl, ttl, onClose, onRefresh }) => {
           />
         </div>
 
-        {/* Actions */}
+        {/* Action buttons */}
         <div className="flex justify-between items-center mt-6 gap-2">
           <button
             onClick={copyLink}
@@ -105,6 +108,4 @@ const QRModal = ({ dataUrl, ttl, onClose, onRefresh }) => {
       </div>
     </div>
   );
-};
-
-export default QRModal;
+}

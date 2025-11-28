@@ -1,17 +1,25 @@
 import { decryptFile, downloadBlob } from "@/lib/crypto";
+import { API_BASE_URL } from "@/lib/api";   // ✅ import backend base URL
 
 export async function downloadAndDecrypt(id, password) {
   try {
     if (!password) throw new Error("Password required");
 
-    // Get metadata first
-    const metaRes = await fetch(`/api/files/${id}/metadata`);
+    // 1️⃣ Get metadata (salt + iv + filename)
+    const metaRes = await fetch(`${API_BASE_URL}/api/files/${id}/metadata`);
+
     if (metaRes.status === 404) {
       throw new Error("This file no longer exists.");
     }
-    const metadata = await metaRes.json();
 
-    // Check expiration / limit BEFORE downloading
+    let metadata;
+    try {
+      metadata = await metaRes.json(); // <-- THIS WAS FAILING BEFORE
+    } catch (e) {
+      throw new Error("Server returned invalid metadata response.");
+    }
+
+    // 2️⃣ Check expiration + download limits
     if (metadata.status === "EXPIRED") {
       throw new Error("This file has expired.");
     }
@@ -19,8 +27,8 @@ export async function downloadAndDecrypt(id, password) {
       throw new Error("Download limit reached for this file.");
     }
 
-    // Fetch encrypted file
-    const fileRes = await fetch(`/api/files/${id}/download`);
+    // 3️⃣ Fetch encrypted file (binary)
+    const fileRes = await fetch(`${API_BASE_URL}/api/files/${id}/download`);
 
     if (fileRes.status === 404) {
       throw new Error("File expired or removed by the sender.");
@@ -32,7 +40,7 @@ export async function downloadAndDecrypt(id, password) {
 
     const encryptedBuffer = await fileRes.arrayBuffer();
 
-    // Try decrypting using AES-GCM
+    // 4️⃣ Perform AES-GCM decryption (handled in browser)
     let decryptedBlob;
     try {
       decryptedBlob = await decryptFile(
@@ -42,14 +50,13 @@ export async function downloadAndDecrypt(id, password) {
         metadata.iv
       );
     } catch (e) {
-      // AES-GCM authentication failed = WRONG PASSWORD
       throw new Error("Incorrect password. Please try again.");
     }
 
-    // Download decrypted file
+    // 5️⃣ Save file
     downloadBlob(decryptedBlob, metadata.originalFilename);
 
-    // Notify Dashboard to refresh download count
+    // 6️⃣ Refresh downloads on Dashboard
     window.dispatchEvent(new Event("refresh-files"));
 
   } catch (err) {
@@ -57,4 +64,3 @@ export async function downloadAndDecrypt(id, password) {
     throw err;
   }
 }
-

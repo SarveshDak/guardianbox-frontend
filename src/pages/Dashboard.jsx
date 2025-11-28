@@ -285,15 +285,15 @@ const Dashboard = () => {
         }}
       />
 
-      {/* QR modal */}
       {qrDataUrl && (
-        <QRModal
-          dataUrl={qrDataUrl}
-          ttl={qrTTL}
-          onClose={() => setQrDataUrl("")}
-          onRefresh={() => generateQR(selectedFileId)}
-        />
-      )}
+  <QRModal
+    dataUrl={qrDataUrl}
+    downloadUrl={`${API_BASE_URL}/api/files/${selectedFileId}/download`}
+    ttl={qrTTL}
+    onClose={() => setQrDataUrl("")}
+    onRefresh={() => generateQR(selectedFileId)}
+  />
+)}
     </div>
   );
 };
