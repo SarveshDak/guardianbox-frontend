@@ -29,6 +29,7 @@ function Signup() {
   const handleSignup = async (e) => {
     e.preventDefault();
 
+    // Validation
     if (!form.name.trim() || !form.email.trim() || !form.password.trim()) {
       toast.error("All fields are required");
       return;
@@ -39,35 +40,97 @@ function Signup() {
       return;
     }
 
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(form.email)) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
     setLoading(true);
 
     try {
+      console.log("🚀 Sending signup request to:", `${API_BASE_URL}/api/auth/signup`);
+      console.log("📦 Form data:", { name: form.name, email: form.email });
+
       const res = await fetch(`${API_BASE_URL}/api/auth/signup`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          email: form.email.trim().toLowerCase(),
+          password: form.password
+        }),
       });
 
-      const data = await res.json();
+      console.log("📡 Response status:", res.status);
 
-      if (!res.ok) {
-        toast.error(data.message || "Signup failed");
+      // Try to parse response
+      let data;
+      const contentType = res.headers.get("content-type");
+      
+      if (contentType && contentType.includes("application/json")) {
+        data = await res.json();
+        console.log("📥 Response data:", data);
+      } else {
+        const text = await res.text();
+        console.error("❌ Non-JSON response:", text);
+        toast.error("Server error: Invalid response format");
         setLoading(false);
         return;
       }
 
-      // Save token + user + tier (FREE)
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("guardianbox_user", JSON.stringify(data.user));
-      localStorage.setItem("guardianbox_tier", data.user.tier.toLowerCase());
+      if (!res.ok) {
+        // Handle specific error cases
+        if (res.status === 409) {
+          toast.error("Email already registered. Please login instead.");
+        } else if (res.status === 400) {
+          toast.error(data.message || "Invalid input. Please check your details.");
+        } else if (res.status === 500) {
+          toast.error("Server error. Please try again later.");
+        } else {
+          toast.error(data.message || "Signup failed. Please try again.");
+        }
+        setLoading(false);
+        return;
+      }
 
-      window.dispatchEvent(new Event("tier-changed"));
+      // Success - save data
+      console.log("✅ Signup successful!");
+      
+      if (data.token && data.user) {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("guardianbox_user", JSON.stringify(data.user));
+        localStorage.setItem("guardianbox_tier", (data.user.tier || "free").toLowerCase());
 
-      toast.success("Account created successfully!");
-      navigate("/");
+        window.dispatchEvent(new Event("tier-changed"));
+
+        toast.success("Account created successfully! Welcome aboard 🎉");
+        
+        // Small delay for toast to show
+        setTimeout(() => {
+          navigate("/");
+        }, 500);
+      } else {
+        toast.error("Signup successful but missing user data");
+        setLoading(false);
+      }
+
     } catch (err) {
-      toast.error("Something went wrong. Please try again.");
-    } finally {
+      console.error("❌ Signup error:", err);
+      
+      // More specific error messages
+      if (err.name === "TypeError" && err.message.includes("fetch")) {
+        toast.error("Cannot connect to server. Please check if backend is running.");
+      } else if (err.message.includes("NetworkError")) {
+        toast.error("Network error. Please check your internet connection.");
+      } else {
+        toast.error("Something went wrong. Please try again.");
+      }
+      
       setLoading(false);
     }
   };
@@ -96,6 +159,7 @@ function Signup() {
                   name="name"
                   placeholder="Your Name"
                   required
+                  value={form.name}
                   onChange={handleChange}
                   className="pl-10 bg-white/20 border-white/30 text-white placeholder-white/50"
                 />
@@ -112,6 +176,7 @@ function Signup() {
                   name="email"
                   placeholder="you@example.com"
                   required
+                  value={form.email}
                   onChange={handleChange}
                   className="pl-10 bg-white/20 border-white/30 text-white placeholder-white/50"
                 />
@@ -128,17 +193,22 @@ function Signup() {
                   name="password"
                   placeholder="••••••••"
                   required
+                  value={form.password}
                   onChange={handleChange}
                   className="pl-10 bg-white/20 border-white/30 text-white placeholder-white/50"
+                  minLength={8}
                 />
               </div>
+              <p className="text-xs text-white/50 mt-1">
+                Minimum 8 characters
+              </p>
             </div>
 
             {/* Signup button */}
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-green-600 hover:bg-green-700 text-white rounded-xl py-3 text-lg"
+              className="w-full bg-green-600 hover:bg-green-700 text-white rounded-xl py-3 text-lg font-semibold transition-all"
             >
               {loading ? "Creating account..." : "Sign Up"}
             </Button>
