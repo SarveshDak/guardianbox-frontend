@@ -47,8 +47,6 @@ const Upgrade = () => {
       }
 
       const data = await res.json();
-      
-      // ✅ FIX: Normalize to lowercase
       const remote = (data.tier || "FREE").toLowerCase();
       setTier(remote);
       localStorage.setItem(PRO_TIER_KEY, remote);
@@ -90,7 +88,6 @@ const Upgrade = () => {
         return;
       }
 
-      // ✅ Save as lowercase
       localStorage.setItem(PRO_TIER_KEY, "pro");
       window.dispatchEvent(new Event("tier-changed"));
       setTier("pro");
@@ -131,7 +128,6 @@ const Upgrade = () => {
         return;
       }
 
-      // ✅ Save as lowercase
       localStorage.setItem(PRO_TIER_KEY, "free");
       window.dispatchEvent(new Event("tier-changed"));
       setTier("free");
@@ -161,9 +157,6 @@ const Upgrade = () => {
       <Header />
 
       <div className="container mx-auto px-4 py-12 max-w-6xl">
-        {/* Add your full Upgrade UI here - the pricing cards, features, etc. */}
-        {/* Keep your original beautiful UI layout */}
-        
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4">Choose Your Plan</h1>
           <p className="text-muted-foreground text-lg">
@@ -171,14 +164,70 @@ const Upgrade = () => {
           </p>
         </div>
 
-        {/* Your pricing cards go here */}
-        <div className="flex gap-4 justify-center">
-          <Button onClick={goPro} disabled={isProcessing || tier === "pro"}>
-            {tier === "pro" ? "Current Plan: PRO" : "Upgrade to PRO"}
-          </Button>
-          <Button onClick={revertToFree} disabled={isProcessing || tier === "free"}>
-            {tier === "free" ? "Current Plan: FREE" : "Downgrade to FREE"}
-          </Button>
+        {/* Pricing Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          
+          {/* Free Plan */}
+          <Card className="p-6 border-muted">
+            <h2 className="text-2xl font-bold mb-4">Free Plan</h2>
+            <p className="text-muted-foreground mb-6">
+              Perfect for casual users and small file transfers.
+            </p>
+
+            <ul className="space-y-3 mb-6">
+              <li className="flex items-center gap-2">
+                <Check className="text-green-500" size={20} />
+                Upload up to <strong>100MB per file</strong>
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="text-green-500" size={20} />
+                Files stored for <strong>24 hours</strong>
+              </li>
+            </ul>
+
+            <Button
+              onClick={revertToFree}
+              disabled={isProcessing || tier === "free"}
+              className="w-full"
+            >
+              {tier === "free" ? "Current Plan" : "Switch to Free"}
+            </Button>
+          </Card>
+
+          {/* Pro Plan */}
+          <Card className="p-6 border-yellow-500 shadow-lg">
+            <div className="flex items-center gap-2 mb-4">
+              <Crown className="text-yellow-500" />
+              <h2 className="text-2xl font-bold">Pro Plan</h2>
+            </div>
+
+            <p className="text-muted-foreground mb-6">
+              Ideal for professionals, creators, and heavy users.
+            </p>
+
+            <ul className="space-y-3 mb-6">
+              <li className="flex items-center gap-2">
+                <Check className="text-green-500" size={20} />
+                Upload files up to <strong>5GB</strong>
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="text-green-500" size={20} />
+                Set <strong>custom expiration dates</strong>
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="text-green-500" size={20} />
+                Access to <strong>dashboard of active shared links</strong>
+              </li>
+            </ul>
+
+            <Button
+              onClick={goPro}
+              disabled={isProcessing || tier === "pro"}
+              className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
+            >
+              {tier === "pro" ? "Current Plan" : "Upgrade to PRO"}
+            </Button>
+          </Card>
         </div>
       </div>
     </div>
