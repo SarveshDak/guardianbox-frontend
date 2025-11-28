@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import {
   Download as DownloadIcon,
   Lock,
@@ -16,34 +16,38 @@ import { Header } from "@/components/Header";
 import { ProgressSteps } from "@/components/ProgressSteps";
 import { toast } from "sonner";
 
-import { getFileMetadata, downloadEncryptedFile } from "@/lib/api";
+import { getFileMetadata, downloadEncryptedFile, API_BASE_URL } from "@/lib/api";
 import { decryptFile, downloadBlob } from "@/lib/crypto";
 
 const Download = () => {
   const { id } = useParams();
+  const location = useLocation();
 
   const [metadata, setMetadata] = useState(null);
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
-
   const [downloadStep, setDownloadStep] = useState(0);
   const [error, setError] = useState(null);
 
   const passwordRef = useRef(null);
 
-  //
-  // 📌 Load Metadata + Auto-Fill Password
-  //
+  // ------------------------------
+  // Load Metadata + Autofill Password
+  // ------------------------------
   useEffect(() => {
     const loadMetadata = async () => {
       try {
         const data = await getFileMetadata(id);
         setMetadata(data);
 
-        // Autofill password from hash (#pw=xxxx)
+        // AUTO-DETECT PASSWORD FROM HASH (#pw=xxx)
         const hash = window.location.hash;
-        const match = hash.match(/pw=([^&]+)/);
+        const match =
+          hash.match(/pw=([^&]+)/) ||
+          hash.match(/password=([^&]+)/) ||
+          hash.match(/key=([^&]+)/);
+
         if (match) setPassword(decodeURIComponent(match[1]));
       } catch (err) {
         setError(err?.message || "Failed to load file information");
@@ -55,9 +59,9 @@ const Download = () => {
     loadMetadata();
   }, [id]);
 
-  //
-  // 💾 Download + Decrypt Process
-  //
+  // ------------------------------
+  // DOWNLOAD + DECRYPT PROCESS
+  // ------------------------------
   const handleDownload = async () => {
     if (!password) return toast.error("Please enter the password.");
 
@@ -65,12 +69,12 @@ const Download = () => {
     setDownloadStep(1);
 
     try {
-      // Step 1: Fetch encrypted file
+      // STEP 1: Download encrypted file
       const encryptedFile = await downloadEncryptedFile(id);
 
-      // Step 2: Decrypt file
       setDownloadStep(2);
 
+      // STEP 2: Decrypt file
       const decryptedBlob = await decryptFile(
         encryptedFile,
         password,
@@ -78,27 +82,30 @@ const Download = () => {
         metadata.iv
       );
 
-      // Step 3: Save file
       setDownloadStep(3);
+
+      // STEP 3: Save file
       downloadBlob(decryptedBlob, metadata.originalFilename);
 
       toast.success("File decrypted successfully!");
     } catch (err) {
       console.error("Download error:", err);
-      toast.error(
-        err?.message?.includes("Decryption failed")
-          ? "Incorrect password!"
-          : "Download failed."
-      );
+
+      if (err.message?.includes("Decryption failed")) {
+        toast.error("Incorrect password!");
+      } else {
+        toast.error(err.message || "Download failed.");
+      }
+
       setDownloadStep(0);
     } finally {
       setIsDownloading(false);
     }
   };
 
-  //
-  // 🟡 Loading State
-  //
+  // ------------------------------
+  // LOADING STATE
+  // ------------------------------
   if (isLoading) {
     return (
       <div className="min-h-screen">
@@ -110,9 +117,9 @@ const Download = () => {
     );
   }
 
-  //
-  // ❌ File Not Found
-  //
+  // ------------------------------
+  // FILE NOT FOUND
+  // ------------------------------
   if (error || !metadata) {
     return (
       <div className="min-h-screen">
@@ -132,9 +139,9 @@ const Download = () => {
     );
   }
 
-  //
-  // ⛔ Expired or Unavailable
-  //
+  // ------------------------------
+  // FILE EXPIRED OR UNAVAILABLE
+  // ------------------------------
   if (metadata.status !== "ACTIVE") {
     return (
       <div className="min-h-screen">
@@ -165,9 +172,9 @@ const Download = () => {
     );
   }
 
-  //
-  // 🎉 MAIN DOWNLOAD UI
-  //
+  // ------------------------------
+  // MAIN DOWNLOAD UI
+  // ------------------------------
   return (
     <div className="min-h-screen">
       <Header />
@@ -180,7 +187,7 @@ const Download = () => {
           The file will be decrypted locally in your browser.
         </p>
 
-        {/* Decrypt Progress */}
+        {/* Progress */}
         {isDownloading && (
           <div className="mb-8">
             <ProgressSteps
@@ -196,12 +203,12 @@ const Download = () => {
 
         <Card className="p-8 shadow-lg bg-card/50 backdrop-blur-sm border-border">
           <div className="space-y-6">
-
-            {/* File Card */}
+            {/* File Summary */}
             <div className="flex items-center gap-4 p-4 bg-muted/30 rounded-xl border">
               <div className="p-3 bg-primary/10 rounded-lg">
                 <FileIcon className="w-8 h-8 text-primary" />
               </div>
+
               <div>
                 <h3 className="font-semibold text-lg">
                   {metadata.originalFilename}
@@ -222,13 +229,13 @@ const Download = () => {
                   type="password"
                   className="mt-2"
                   placeholder="Enter decryption password"
-                  ref={passwordRef}
                   value={password}
+                  ref={passwordRef}
                   onChange={(e) => setPassword(e.target.value)}
                   autoFocus
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Password was shared with you by the uploader.
+                  The uploader shared this password with you.
                 </p>
               </div>
             )}
@@ -237,7 +244,7 @@ const Download = () => {
             {password && (
               <div className="p-4 rounded-lg bg-primary/10 border border-primary/20 text-sm">
                 <Lock className="w-4 h-4 inline mr-2" />
-                Password detected from QR link. Ready to decrypt.
+                Password detected from secure link. Ready to decrypt.
               </div>
             )}
 
@@ -260,7 +267,7 @@ const Download = () => {
             </Button>
 
             <p className="text-xs text-center text-muted-foreground">
-              Decryption happens locally. Password is never sent to the server.
+              Decryption happens on your device. Password is never sent to the server.
             </p>
           </div>
         </Card>

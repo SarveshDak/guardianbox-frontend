@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Mail, Lock, User } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 // ----------------------------
 // USE ENV VARIABLE FOR BACKEND
@@ -27,12 +28,21 @@ export default function Signup() {
 
   const handleSignup = async (e) => {
     e.preventDefault();
+
+    // Basic validation
+    if (!form.name.trim() || !form.email.trim() || !form.password.trim()) {
+      toast.error("All fields are required");
+      return;
+    }
+
+    if (form.password.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // ----------------------------
-      // UPDATED SIGNUP API CALL
-      // ----------------------------
       const res = await fetch(`${API_BASE_URL}/api/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -42,18 +52,24 @@ export default function Signup() {
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data.message || "Signup failed");
+        toast.error(data.message || "Signup failed");
         setLoading(false);
         return;
       }
 
-      // Auto-login after sign up
+      // Save token + user + tier (FREE)
       localStorage.setItem("token", data.token);
+      localStorage.setItem("guardianbox_user", JSON.stringify(data.user));
+      localStorage.setItem("guardianbox_tier", data.user.tier.toLowerCase());
+
+      // Notify app (dashboard, upload page)
+      window.dispatchEvent(new Event("tier-changed"));
+
+      toast.success("Account created successfully!");
 
       navigate("/");
     } catch (err) {
-      console.log(err);
-      alert("Something went wrong");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }

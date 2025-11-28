@@ -20,6 +20,7 @@ import QRModal from "@/components/QRModal";
 
 import DecryptModal from "@/components/DecryptModal";
 import { downloadAndDecrypt } from "@/lib/downloadAndDecrypt";
+import { API_BASE_URL } from "@/lib/api"; // ✅ FIXED: proper API URL import
 
 const PRO_TIER_KEY = "guardianbox_tier";
 
@@ -30,7 +31,8 @@ function timeRemaining(expiresAt) {
 
   if (diffMs <= 0) return "Expired";
 
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffHours = Math.floor(diffMs / 1000 / 60 / 60);
+
   if (diffHours < 24) return `${diffHours} hours`;
 
   const days = Math.floor(diffHours / 24);
@@ -49,20 +51,16 @@ const Dashboard = () => {
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [qrTTL, setQrTTL] = useState(300);
 
-  // tier
   const [tier, setTier] = useState("free");
 
   const loadTier = () => {
-    try {
-      setTier(localStorage.getItem(PRO_TIER_KEY) || "free");
-    } catch {
-      setTier("free");
-    }
+    const saved = localStorage.getItem(PRO_TIER_KEY) || "free";
+    setTier(saved);
   };
 
   const loadFiles = async () => {
     try {
-      const res = await fetch("/api/files");
+      const res = await fetch(`${API_BASE_URL}/api/files`);
       const data = await res.json();
       setFiles(data);
     } catch (err) {
@@ -78,42 +76,46 @@ const Dashboard = () => {
     loadFiles();
 
     const refresh = () => loadFiles();
-    window.addEventListener("refresh-files", refresh);
+    const tierChanged = () => loadTier();
 
-    const onTierChanged = () => loadTier();
-    window.addEventListener("tier-changed", onTierChanged);
+    window.addEventListener("refresh-files", refresh);
+    window.addEventListener("tier-changed", tierChanged);
 
     return () => {
       window.removeEventListener("refresh-files", refresh);
-      window.removeEventListener("tier-changed", onTierChanged);
+      window.removeEventListener("tier-changed", tierChanged);
     };
   }, []);
 
   const deleteFile = async (id) => {
     try {
-      await fetch(`/api/files/${id}`, { method: "DELETE" });
-      setFiles(files.filter((f) => f.id !== id));
+      await fetch(`${API_BASE_URL}/api/files/${id}`, { method: "DELETE" });
+
+      setFiles((prev) => prev.filter((f) => f.id !== id)); // ✅ FIXED
       toast.success("File deleted");
     } catch {
       toast.error("Delete failed");
     }
   };
 
-  // ⭐ QR GENERATOR (with auto-refresh support)
+  // ⭐ QR GENERATOR
   const generateQR = async (fileId) => {
     try {
-      const res = await fetch(`/api/files/${fileId}/qr`);
-      const { qrUrl, ttl } = await res.json();
+      const res = await fetch(`${API_BASE_URL}/api/files/${fileId}/qr`);
+      const result = await res.json();
 
-      const qrImage = await QRCode.toDataURL(qrUrl, {
+      if (!res.ok) {
+        toast.error(result.error || "QR generation failed");
+        return;
+      }
+
+      const qrImage = await QRCode.toDataURL(result.qrUrl, {
         width: 300,
         margin: 2,
       });
 
       setQrDataUrl(qrImage);
-      setQrTTL(ttl);
-
-      // Save for auto-refresh
+      setQrTTL(result.ttl);
       setSelectedFileId(fileId);
     } catch (err) {
       console.error(err);
@@ -126,13 +128,11 @@ const Dashboard = () => {
       <Header />
 
       <div className="container mx-auto px-4 py-12 max-w-6xl">
-        {/* Header */}
+        {/* title */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-4xl font-bold mb-2">Dashboard</h1>
-            <p className="text-muted-foreground">
-              Manage your active file shares
-            </p>
+            <p className="text-muted-foreground">Manage your active file shares</p>
           </div>
           <Link to="/upload">
             <Button className="gradient-hero">
@@ -142,16 +142,14 @@ const Dashboard = () => {
           </Link>
         </div>
 
-        {/* Upgrade Card */}
         {tier !== "pro" && (
           <Card className="p-6 border-primary bg-primary/5 backdrop-blur-sm mb-8">
             <div className="flex items-start gap-4">
-              <Crown className="w-8 h-8 text-primary flex-shrink-0 mt-1" />
+              <Crown className="w-8 h-8 text-primary mt-1" />
               <div className="flex-1">
                 <h3 className="font-bold text-lg mb-1">Upgrade to Pro</h3>
                 <p className="text-muted-foreground mb-4">
-                  Get access to larger files (5GB), custom expiration, unlimited
-                  downloads, and more.
+                  Get 5GB uploads, custom expiration & unlimited downloads.
                 </p>
                 <Link to="/upgrade">
                   <Button variant="outline">View Pro Features</Button>
@@ -161,16 +159,14 @@ const Dashboard = () => {
           </Card>
         )}
 
-        {/* Table */}
+        {/* TABLE */}
         <Card className="border-border bg-card/50 backdrop-blur-sm overflow-hidden">
           <div className="p-6 border-b border-border">
             <h2 className="text-xl font-bold">Active Shares</h2>
           </div>
 
           {loading ? (
-            <div className="p-12 text-center text-muted-foreground">
-              Loading...
-            </div>
+            <div className="p-12 text-center">Loading...</div>
           ) : files.length === 0 ? (
             <div className="p-12 text-center text-muted-foreground">
               <FileIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
@@ -197,12 +193,11 @@ const Dashboard = () => {
               <TableBody>
                 {files.map((file) => {
                   const expiresText = timeRemaining(file.expiresAt);
-                  const status =
-                    expiresText === "Expired" ? "expired" : "active";
+                  const status = expiresText === "Expired" ? "expired" : "active";
 
                   return (
                     <TableRow key={file.id}>
-                      <TableCell className="font-medium">
+                      <TableCell>
                         <div className="flex items-center gap-2">
                           <FileIcon className="w-4 h-4 text-primary" />
                           {file.originalFilename}
@@ -214,47 +209,33 @@ const Dashboard = () => {
                       </TableCell>
 
                       <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-4 h-4 text-muted-foreground" />
-                          {expiresText}
-                        </div>
+                        <Clock className="w-4 h-4 inline mr-1 text-muted-foreground" />
+                        {expiresText}
                       </TableCell>
 
-                      {/* Download */}
                       <TableCell>
-                        {file.downloadsUsed >= file.maxDownloads ? (
-                          <p className="text-red-400 text-sm">
-                            {file.downloadsUsed} / {file.maxDownloads} (Limit
-                            reached)
-                          </p>
-                        ) : (
-                          <button
-                            className="flex items-center gap-1 hover:text-white transition"
-                            onClick={() => {
-                              setSelectedFileId(file.id);
-                              setDecryptModalOpen(true);
-                            }}
-                          >
-                            <Download className="w-4 h-4" />
-                            {file.downloadsUsed} / {file.maxDownloads}
-                          </button>
-                        )}
+                        <button
+                          className="flex items-center gap-1 hover:text-white transition"
+                          onClick={() => {
+                            setSelectedFileId(file.id);
+                            setDecryptModalOpen(true);
+                          }}
+                          disabled={file.downloadsUsed >= file.maxDownloads}
+                        >
+                          <Download className="w-4 h-4" />
+                          {file.downloadsUsed} / {file.maxDownloads}
+                        </button>
                       </TableCell>
 
-                      {/* Status */}
                       <TableCell>
                         <Badge
-                          variant={
-                            status === "active" ? "default" : "secondary"
-                          }
+                          variant={status === "active" ? "default" : "secondary"}
                         >
                           {status}
                         </Badge>
                       </TableCell>
 
-                      {/* ACTIONS */}
                       <TableCell className="text-right flex gap-2 justify-end">
-                        {/* ⭐ QR BUTTON */}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -263,7 +244,6 @@ const Dashboard = () => {
                           <QrCode className="w-4 h-4" />
                         </Button>
 
-                        {/* Delete */}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -281,7 +261,7 @@ const Dashboard = () => {
         </Card>
 
         <div className="mt-8 text-center text-sm text-muted-foreground">
-          <p>Your encrypted shares loaded successfully 🎉</p>
+          Files loaded securely 🎉
         </div>
       </div>
 
@@ -299,7 +279,7 @@ const Dashboard = () => {
         }}
       />
 
-      {/* ⭐ QR MODAL (with auto-refresh) */}
+      {/* QR MODAL */}
       {qrDataUrl && (
         <QRModal
           dataUrl={qrDataUrl}

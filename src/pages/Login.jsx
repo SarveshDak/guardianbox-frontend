@@ -5,8 +5,9 @@ import { Card, CardContent, CardTitle, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
+import { toast } from "sonner";
 
-// Particle imports
+// Particles
 import Particles from "@tsparticles/react";
 import { loadSlim } from "@tsparticles/slim";
 
@@ -23,35 +24,40 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Load particles
+  // Particle init
   const particlesInit = useCallback(async (engine) => {
     await loadSlim(engine);
   }, []);
 
-  // FUNCTION → Handle Login
+  // ----------------------------
+  // LOGIN FUNCTION
+  // ----------------------------
   const handleLogin = async () => {
-    if (!email || !password) {
-      alert("Please fill all fields");
+    if (!email.trim() || !password.trim()) {
+      toast.error("Please fill all fields");
       return;
     }
 
     try {
       setLoading(true);
 
-      // ----------------------------
-      // UPDATED LOGIN API CALL
-      // ----------------------------
       const res = await axios.post(`${API_BASE_URL}/api/auth/login`, {
         email,
         password,
       });
 
-      // Save token
+      // Save token + user info
       localStorage.setItem("token", res.data.token);
+      localStorage.setItem("guardianbox_user", JSON.stringify(res.data.user));
+      localStorage.setItem("guardianbox_tier", res.data.user.tier.toLowerCase());
 
+      // Notify across app
+      window.dispatchEvent(new Event("tier-changed"));
+
+      toast.success("Login successful!");
       navigate("/");
     } catch (err) {
-      alert(err.response?.data?.message || "Login failed");
+      toast.error(err.response?.data?.message || "Login failed");
     } finally {
       setLoading(false);
     }
@@ -60,7 +66,7 @@ export default function Login() {
   return (
     <div className="min-h-screen w-full bg-black flex items-center justify-center relative overflow-hidden">
 
-      {/* PARTICLE BACKGROUND */}
+      {/* Particle Background */}
       <Particles
         id="tsparticles"
         init={particlesInit}
@@ -90,13 +96,11 @@ export default function Login() {
         }}
       />
 
-      {/* DEPTH BLUR GRADIENT */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-900/30 via-black to-black backdrop-blur-3xl" />
 
-      {/* LOGIN CARD */}
+      {/* Login Card */}
       <Card className="w-full max-w-md bg-black/60 backdrop-blur-xl border border-neutral-800 shadow-[0px_0px_80px_rgba(0,0,0,0.7)] rounded-2xl p-8 relative z-10">
 
-        {/* HEADER / LOGO */}
         <CardHeader className="text-center space-y-3">
           <div className="flex justify-center">
             <Shield className="w-14 h-14 text-blue-500 drop-shadow-[0_0_12px_rgba(59,130,246,0.7)]" />
@@ -111,7 +115,6 @@ export default function Login() {
           </p>
         </CardHeader>
 
-        {/* FORM */}
         <CardContent className="space-y-6">
 
           {/* Email */}
@@ -146,7 +149,7 @@ export default function Login() {
             </div>
           </div>
 
-          {/* LOGIN BUTTON */}
+          {/* Login Button */}
           <Button
             onClick={handleLogin}
             disabled={loading}
@@ -156,7 +159,7 @@ export default function Login() {
             {loading ? "Logging in..." : "Login"}
           </Button>
 
-          {/* SIGNUP LINK */}
+          {/* Signup Link */}
           <p className="text-center text-neutral-400 text-sm pt-2">
             Don’t have an account?{" "}
             <Link to="/signup" className="text-blue-400 hover:underline">
